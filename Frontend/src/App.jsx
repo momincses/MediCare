@@ -1,11 +1,17 @@
 import { useState } from 'react'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import Home from './Screens/Home/Home'
 import './App.css'
 
 function App() {
 
   return (
     <>
-      <h1>MediCare</h1>
+      <BrowserRouter>
+      <Routes>
+        <Route path='/' element={<Home/>}></Route>
+      </Routes>
+      </BrowserRouter>
     </>
   )
 }
