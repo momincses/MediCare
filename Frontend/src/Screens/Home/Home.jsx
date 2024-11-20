@@ -66,7 +66,7 @@ const Home = () => {
           <div className={`${styles.loginAs} `}>
             <p className={styles.BlockTitle}>Login As</p>
             <div className={styles.loginAsBtns}>
-              <div className={`${styles.loginAsBtn} ${studentLoginstyles.selected}`} > Student</div>
+              <div className={`${styles.loginAsBtn} ${studentLogin? styles.selected : ''}`} > Student</div>
               <div className={`${styles.loginAsBtn}`}>Doctor</div>
             </div>
           </div>

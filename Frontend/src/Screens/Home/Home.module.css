@@ -107,6 +107,7 @@
     font-size: 40px;
     font-weight: 700;
     letter-spacing: 1px;
+    text-align: center;
     color: #252b61;
   }
 
@@ -138,6 +139,10 @@
   .login {
     width: 96vw;
     max-width: 1200px;
+    /* flex-direction: column;
+    display: flex;
+    justify-content: center;
+    align-items: center; */
   }
 
   .form {
@@ -149,8 +154,8 @@
   }
   
   .loginAs {
-    display: flex;
     flex-direction: column;
+    display: flex;
     justify-content: center;
     align-items: center;
   }
