@@ -27,10 +27,27 @@ const Registration = () => {
     clearErrors("role");
   }
 
-  const onSubmit = (data) => {
-    console.log("Registration Successful", data);
+  const onSubmit = async (data) => {
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      if (response.ok) {
+        console.log("Registration successful:", result);
+        alert("Registration successful!");
+      } else {
+        console.error("Error:", result.error);
+        alert(result.error);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Something went wrong, please try again.");
+    }
   };
-
+  
   return (
     <div>
       {/* Header Section */}
