@@ -7,6 +7,7 @@ const router = express.Router();
 router.post("/register", registerStudent);
 
 // Email verification route
-router.get("/verify/:token", verifyEmail);
+router.get("/verify", verifyEmail);
 
 module.exports = router;
+ 
