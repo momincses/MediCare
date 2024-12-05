@@ -9,9 +9,12 @@ import Select from "@mui/material/Select";
 import Button from "@mui/material/Button";
 import FormHelperText from "@mui/material/FormHelperText";
 
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const Home = () => {
+
+  const navigate = useNavigate();
+
   const {
     register,
     handleSubmit,
@@ -30,9 +33,44 @@ const Home = () => {
     clearErrors("role");
   }
 
-  const onSubmit = (data) => {
-    console.log("Form Submitted Successfully", data);
+  const handleLogin = async (data) => {
+    console.log(data.role);
+    try {
+      const role = data.role; // Retrieve the role selected by the user
+      const loginUrl =
+        role === "Doctor"
+          ? "http://localhost:5000/api/auth/doctor/login"
+          : "http://localhost:5000/api/auth/login";
+  
+      const response = await fetch(loginUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+  
+      const result = await response.json();
+  
+      if (response.ok) {
+        // Save token in localStorage
+        
+        if (role === "Doctor") {
+          localStorage.setItem("doctorToken", result.token);
+          navigate("/doctor", { state: { email: data.email } });
+        } else {
+          localStorage.setItem("studentToken", result.token);
+          navigate("/student", { state: { email: data.email } });
+        }
+      } else {
+        alert(result.message);
+      }
+    } catch (error) {
+      console.error("Login Failed", error);
+    }
   };
+  
+
 
   return (
     <div>
@@ -98,7 +136,7 @@ const Home = () => {
         <div className={styles.BlockTitle}>Login</div>
         <form
           className={styles.form}
-          onSubmit={handleSubmit(onSubmit)}
+          onSubmit={handleSubmit(handleLogin)}
           noValidate
         >
           <div className={styles.formTitle}>
@@ -136,7 +174,7 @@ const Home = () => {
               }}
             >
               <MenuItem value="Student">Student</MenuItem>
-              <MenuItem value="Teacher">Doctor</MenuItem>
+              <MenuItem value="Doctor">Doctor</MenuItem>
             </Select>
             <FormHelperText>
               {errors.role && errors.role.message}
