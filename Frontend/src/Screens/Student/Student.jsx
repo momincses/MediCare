@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import styles from "./Student.module.css";
-import { useLocation } from "react-router-dom";
 
 import Button from "@mui/material/Button";
 import AppointmentForm from "../../Components/AppointmentForm/AppointmentForm";
@@ -11,42 +11,45 @@ const Student = () => {
   const [error, setError] = useState("");
   const [isPopupOpen, setIsPopupOpen] = useState(false);
 
+  const navigate = useNavigate(); // Initialize the navigate function
+  const location = useLocation();
+  const { email } = location.state || {};
+
   const formatDateWithDay = (date) => {
     const options = { weekday: "long", year: "numeric", month: "2-digit", day: "2-digit" };
     return new Intl.DateTimeFormat("en-US", options).format(new Date(date));
   };
 
-  const location = useLocation();
-  const { email } = location.state || {};
-
   useEffect(() => {
     const fetchStudentData = async () => {
+      const token = localStorage.getItem("studentToken"); // Retrieve the token from local storage
+
+      if (!token) {
+        alert("You are not authenticated. Redirecting to the homepage.");
+        return navigate("/"); // Redirect to homepage if token is not found
+      }
+
       try {
-        const token = localStorage.getItem("token"); // Retrieve the token from local storage
-    
-        if (!token) {
-          throw new Error("User is not authenticated. Please log in.");
-        }
-    
         const response = await fetch(`http://localhost:5000/api/auth/fetchStudent`, {
           headers: {
             Authorization: `Bearer ${token}`, // Include the token in the header
           },
         });
-    
+
         if (!response.ok) {
           const errorResponse = await response.json();
           throw new Error(
             errorResponse.message || "Unable to fetch student data"
           );
         }
-    
+
         const data = await response.json();
         setStudentData(data.student);
-    
+
         // Fetch appointments
         const appointmentsResponse = await fetch(
-          `http://localhost:5000/api/appointments?email=${email}`, {
+          `http://localhost:5000/api/appointments?email=${email}`,
+          {
             headers: {
               Authorization: `Bearer ${token}`, // Include the token here as well if needed
             },
@@ -61,17 +64,18 @@ const Student = () => {
         setError(err.message);
       }
     };
-    
 
     fetchStudentData();
-  }, [email]);
+  }, [email, navigate]); // Add navigate to dependencies
 
   const handleCancelAppointment = async (appointmentId) => {
-    console.log(appointmentId)
     try {
-      const response = await fetch(`http://localhost:5000/api/appointments/${appointmentId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `http://localhost:5000/api/appointments/${appointmentId}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Failed to cancel appointment");
@@ -81,7 +85,6 @@ const Student = () => {
       setAppointments(appointments.filter((appointment) => appointment.id !== appointmentId));
       alert("Appointment cancelled successfully!");
       window.location.reload(); // Refresh the page after canceling
-
     } catch (err) {
       alert(err.message);
     }

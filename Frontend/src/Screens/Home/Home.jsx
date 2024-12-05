@@ -34,30 +34,42 @@ const Home = () => {
   }
 
   const handleLogin = async (data) => {
+    console.log(data.role);
     try {
-      const response = await fetch("http://localhost:5000/api/auth/login", {
+      const role = data.role; // Retrieve the role selected by the user
+      const loginUrl =
+        role === "Doctor"
+          ? "http://localhost:5000/api/auth/doctor/login"
+          : "http://localhost:5000/api/auth/login";
+  
+      const response = await fetch(loginUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
       });
-
+  
       const result = await response.json();
-
-      if(response.ok) {
+  
+      if (response.ok) {
         // Save token in localStorage
-      localStorage.setItem("token", result.token);
-
-        navigate("/student", { state: { email: data.email } });
-      }
-      else {
+        
+        if (role === "Doctor") {
+          localStorage.setItem("doctorToken", result.token);
+          navigate("/doctor", { state: { email: data.email } });
+        } else {
+          localStorage.setItem("studentToken", result.token);
+          navigate("/student", { state: { email: data.email } });
+        }
+      } else {
         alert(result.message);
       }
     } catch (error) {
       console.error("Login Failed", error);
     }
-  }
+  };
+  
 
 
   return (
@@ -162,7 +174,7 @@ const Home = () => {
               }}
             >
               <MenuItem value="Student">Student</MenuItem>
-              <MenuItem value="Teacher">Doctor</MenuItem>
+              <MenuItem value="Doctor">Doctor</MenuItem>
             </Select>
             <FormHelperText>
               {errors.role && errors.role.message}

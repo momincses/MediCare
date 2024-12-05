@@ -3,6 +3,8 @@ const sendEmail = require("../utils/sendEmail");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt") 
 const jwt = require("jsonwebtoken");
+const Doctor = require("../models/doctor");
+
 
 
 exports.registerStudent = async (req, res) => {
