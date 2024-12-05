@@ -44,7 +44,9 @@ exports.registerStudent = async (req, res) => {
     await student.save();
 
     // Send verification email
-    const verificationUrl = `http://localhost:5000/api/auth/verify/${verificationToken}`;
+    console.log(process.env.BASE_URL)
+
+    const verificationUrl = `${process.env.BASE_URL}/api/auth/verify?token=${verificationToken}`;
     await sendEmail(
       email,
       "Verify Your Email",
@@ -63,12 +65,13 @@ exports.registerStudent = async (req, res) => {
 };
 
 exports.verifyEmail = async (req, res) => {
-  const { token } = req.params;
+  const { token } = req.query;
 
   try {
     const student = await Student.findOne({ verificationToken: token });
 
     if (!student) {
+      console.log(token)
       return res.status(400).json({ error: "Invalid or expired token" });
     }
 
