@@ -14,6 +14,7 @@ const medicalDetailsSchema = new mongoose.Schema({
   studentDepartment: { type: String, required: true },
   studentName: { type: String, required: true },
   registrationNo: { type: String, unique: true, required: true },
+  email: { type: String, unique: true, required: true },
 });
 
 module.exports = mongoose.model("MedicalDetails", medicalDetailsSchema);

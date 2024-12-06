@@ -8,7 +8,7 @@ import AppointmentForm from "../../Components/AppointmentForm/AppointmentForm";
 const Student = () => {
   const [studentData, setStudentData] = useState(null);
   const [appointments, setAppointments] = useState([]);
-  const [allocatedLeaves, setAllocatedLeaves] = useState([]);
+  const [leaves, setLeaves] = useState([]); // New state for leaves
   const [error, setError] = useState("");
   const [isPopupOpen, setIsPopupOpen] = useState(false);
 
@@ -16,8 +16,9 @@ const Student = () => {
   const location = useLocation();
   const { email } = location.state || {};
 
-  const formatDate = (date) => {
-    return new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(date));
+  const formatDateWithDay = (date) => {
+    const options = { weekday: "long", year: "numeric", month: "2-digit", day: "2-digit" };
+    return new Intl.DateTimeFormat("en-US", options).format(new Date(date));
   };
 
   useEffect(() => {
@@ -31,51 +32,45 @@ const Student = () => {
 
       try {
         const response = await fetch(`http://localhost:5000/api/auth/fetchStudent`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!response.ok) {
           const errorResponse = await response.json();
-          throw new Error(
-            errorResponse.message || "Unable to fetch student data"
-          );
+          throw new Error(errorResponse.message || "Unable to fetch student data");
         }
 
         const data = await response.json();
         setStudentData(data.student);
 
-        // Fetch appointments
         const appointmentsResponse = await fetch(
           `http://localhost:5000/api/appointments?email=${email}`,
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
           }
         );
+
         if (!appointmentsResponse.ok) {
           throw new Error("Unable to fetch appointments");
         }
+
         const appointmentsData = await appointmentsResponse.json();
         setAppointments(appointmentsData.appointments);
 
-        // Fetch allocated leaves
-        const leavesResponse = await fetch(
-          console.log(studentData.email)
-          `http://localhost:5000/api/allocatedLeaves/${studentData.eamil}}}`,
+        
+        const allocatedLeavesResponse = await fetch(
+          `http://localhost:5000/api/allocatedLeaves?email=${email}`,
           {
-            headers: { 
-              Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
           }
         );
-        if (!leavesResponse.ok) {
-          throw new Error("No leaves allocated.");
+
+        if (!allocatedLeavesResponse.ok) {
+          throw new Error("Unable to fetch allocated leaves");
         }
-        const leavesData = await leavesResponse.json();
-        setAllocatedLeaves(leavesData.leaves);
+
+        const allocatedLeavesData = await allocatedLeavesResponse.json();
+        setLeaves(allocatedLeavesData.leaves); // Store leaves in state
       } catch (err) {
         setError(err.message);
       }
@@ -83,6 +78,39 @@ const Student = () => {
 
     fetchStudentData();
   }, [email, navigate]);
+
+   // Handle Cancel Appointment
+   const handleCancelAppointment = async (appointmentId) => {
+    const token = localStorage.getItem("studentToken");
+
+    if (!token) {
+      alert("You are not authenticated. Redirecting to the homepage.");
+      return navigate("/");
+    }
+
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/appointments/${appointmentId}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to cancel the appointment.");
+      }
+
+      alert("Appointment canceled successfully.");
+
+      // Update the appointments state
+      setAppointments((prevAppointments) =>
+        prevAppointments.filter((appointment) => appointment._id !== appointmentId)
+      );
+    } catch (err) {
+      alert(err.message || "Something went wrong.");
+    }
+  };
 
   return (
     <div className={styles.container}>
@@ -94,21 +122,23 @@ const Student = () => {
           </li>
         </div>
       </div>
+
       {studentData ? (
         <div className={styles.studentDetails}>
           <h2>Welcome, {studentData.name}</h2>
           <h3>What would you like to do today?</h3>
           <div className={styles.medicalDetails}>
+            {/* Allocated Leaves Section */}
             <div className={styles.yourLeaves}>
               <h3 className={styles.medicalDetailsTitle}>Allocated Leaves</h3>
-              {allocatedLeaves.length > 0 ? (
-                allocatedLeaves.map((leave) => (
-                  <div key={leave._id} className={styles.leaveEntry}>
+              {leaves.length > 0 ? (
+                leaves.map((leave) => (
+                  <div key={leave._id} className={styles.leaveDetail}>
                     <p>
-                      <strong>From:</strong> {formatDate(leave.fromDate)}
+                      <strong>From:</strong> {formatDateWithDay(leave.fromDate)}
                     </p>
                     <p>
-                      <strong>To:</strong> {formatDate(leave.toDate)}
+                      <strong>To:</strong> {formatDateWithDay(leave.toDate)}
                     </p>
                     <p>
                       <strong>Reason:</strong> {leave.reason}
@@ -116,15 +146,17 @@ const Student = () => {
                   </div>
                 ))
               ) : (
-                <p>No leaves allocated.</p>
+                <p>No leaves allocated yet.</p>
               )}
             </div>
+
+            {/* Appointment Section */}
             <div className={styles.appointment}>
               <h3 className={styles.medicalDetailsTitle}>Your Appointments</h3>
               {appointments.length > 0 ? (
                 appointments.map((appointment, index) => (
                   <div key={index} className={styles.appointmentMade}>
-                    <span>{formatDate(appointment.visitDate)}</span>
+                    <span>{formatDateWithDay(appointment.visitDate)}</span>
                     <Button
                       variant="outlined"
                       color="error"

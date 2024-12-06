@@ -48,6 +48,7 @@ const Doctor = () => {
   };
 
   const handleFormSubmit = async (e) => {
+    // console.log(selectedStudent)
     e.preventDefault();
     const token = localStorage.getItem("doctorToken");
   
@@ -60,6 +61,7 @@ const Doctor = () => {
       fromDate,
       toDate,
       reason: leaveReason,
+      email: selectedStudent.emailId,
     };
   
     try {
