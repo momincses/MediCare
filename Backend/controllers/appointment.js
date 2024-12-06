@@ -1,4 +1,5 @@
 const Appointment = require('../models/appointment');
+const MedicalDetails = require("../models/allotedLeave"); // Import the MedicalDetails model
 
 // Save Appointment
 exports.saveAppointment = async (req, res) => {
@@ -44,6 +45,7 @@ exports.getAppointmentsByEmail = async (req, res) => {
   }
 };
 
+//delete appointment
 exports.deleteAppointment = async (req, res) => {
     const { id } = req.params;
   
@@ -57,6 +59,29 @@ exports.deleteAppointment = async (req, res) => {
       res.json({ message: "Appointment deleted successfully!" });
     } catch (err) {
       res.status(500).json({ message: "Server error: Unable to delete appointment" });
+    }
+  };
+  
+
+
+  // Fetch allocated leaves for a student by student ID
+  exports.getAllocatedLeaves = async (req, res) => {
+    const { email } = req.params;
+    console.log(email)
+  
+    try {
+      // Find the medical details for the student
+      const medicalDetails = await MedicalDetails.findOne({ email });
+  
+      if (!medicalDetails || !medicalDetails.allottedLeaves || medicalDetails.allottedLeaves.length === 0) {
+        return res.status(404).json({ message: "No leaves allocated for this student." });
+      }
+  
+      // Return the allocated leaves
+      res.status(200).json({ leaves: medicalDetails.allottedLeaves });
+    } catch (error) {
+      console.error("Error fetching allocated leaves:", error);
+      res.status(500).json({ message: "Error fetching allocated leaves." });
     }
   };
   
