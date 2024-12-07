@@ -1,45 +1,50 @@
-const Student = require("../models/student");
-const sendEmail = require("../utils/sendEmail");
-const crypto = require("crypto");
-const bcrypt = require("bcrypt") 
-const jwt = require("jsonwebtoken");
-const Doctor = require("../models/doctor");
+// Required modules and models
+const Student = require("../models/student"); // Student ka data manage karne ka model
+const sendEmail = require("../utils/sendEmail"); // Emails bhejne ka function
+const crypto = require("crypto"); // Tokens generate karne ke liye
+const bcrypt = require("bcrypt"); // Password hash aur validate karne ke liye
+const jwt = require("jsonwebtoken"); // JSON Web Token banane aur verify karne ke liye
 
-
-
+/**
+ * Yeh function student ko register karta hai.
+ * Isme email, password aur name ko validate karte hain.
+ * Agar sab kuch theek ho toh student ko database me save karte hain.
+ * Phir ek verification token generate kar ke email bhejte hain.
+ */
 exports.registerStudent = async (req, res) => {
   const { name, email, password, confirmPassword } = req.body;
 
   try {
-    // Validation
+    // Validation: Agar koi required field miss ho toh error bhejte hain
     if (!name || !email || !password || !confirmPassword) {
-      return res.status(400).json({ error: "All fields are required" });
+      return res.status(400).json({ error: "Sab fields fill karna zaroori hai" });
     }
 
+    // Email ka format check karte hain
     if (!/^[0-9]{4}[a-zA-Z]{3,5}[0-9]{1,5}@sggs\.ac\.in$/.test(email)) {
-      return res.status(400).json({ error: "Invalid email format" });
+      return res.status(400).json({ error: "Email format sahi nahi hai" });
     }
 
+    // Password ka length check karte hain
     if (password.length < 6) {
-      return res
-        .status(400)
-        .json({ error: "Password must be at least 6 characters long" });
+      return res.status(400).json({ error: "Password kam se kam 6 characters ka hona chahiye" });
     }
 
+    // Passwords match karne chahiye
     if (password !== confirmPassword) {
-      return res.status(400).json({ error: "Passwords do not match" });
+      return res.status(400).json({ error: "Passwords match nahi kar rahe" });
     }
 
-    // Check if email already exists
+    // Check karte hain agar student ka email pehle se registered hai
     const existingStudent = await Student.findOne({ email });
     if (existingStudent) {
-      return res.status(400).json({ error: "User with this email already exists" });
+      return res.status(400).json({ error: "Is email se student pehle se registered hai" });
     }
 
-    // Generate a verification token
+    // Verification token generate karte hain
     const verificationToken = crypto.randomBytes(32).toString("hex");
 
-    // Create a new student
+    // Naya student create karte hain aur database me save karte hain
     const student = new Student({
       name,
       email,
@@ -48,9 +53,7 @@ exports.registerStudent = async (req, res) => {
     });
     await student.save();
 
-    // Send verification email
-    console.log(process.env.BASE_URL)
-
+    // Email verify karne ka URL banate hain aur send karte hain
     const verificationUrl = `${process.env.BASE_URL}/api/auth/verify?token=${verificationToken}`;
     await sendEmail(
       email,
@@ -60,6 +63,7 @@ exports.registerStudent = async (req, res) => {
       <a href="${verificationUrl}">Verify Email</a>`
     );
 
+    // Response bhejte hain
     res.status(201).json({
       message: "Registration successful. Please check your email to verify your account.",
     });
@@ -69,17 +73,22 @@ exports.registerStudent = async (req, res) => {
   }
 };
 
+/**
+ * Yeh function email verification ke liye hota hai.
+ * Token ko verify karta hai, agar valid hota hai toh student ko verified mark karte hain.
+ */
 exports.verifyEmail = async (req, res) => {
   const { token } = req.query;
 
   try {
+    // Token se student dhoondte hain
     const student = await Student.findOne({ verificationToken: token });
 
     if (!student) {
-      console.log(token)
-      return res.status(400).json({ error: "Invalid or expired token" });
+      return res.status(400).json({ error: "Invalid ya expired token" });
     }
 
+    // Student ko verified karte hain
     student.isVerified = true;
     student.verificationToken = null;
     await student.save();
@@ -91,45 +100,47 @@ exports.verifyEmail = async (req, res) => {
   }
 };
 
+/**
+ * Yeh function student login handle karta hai.
+ * Email aur password ko verify karta hai aur JWT token generate karta hai agar login successful ho.
+ */
 exports.loginStudent = async (req, res) => {
-  const { role, email, password } = req.body;
+  const { email, password } = req.body;
 
   try {
+    // Validation: Email aur password required hain
     if (!email || !password) {
-      return res.status(400).json({ error: "Please provide both email and password" });
+      return res.status(400).json({ error: "Email aur password dena zaroori hai" });
     }
 
-    // Check if user exists
+    // Check karte hain agar student exist karta hai ya nahi
     const student = await Student.findOne({ email });
     if (!student) {
-      return res.status(404).json({ error: "User not found" });
+      return res.status(404).json({ error: "Student nahi mila" });
     }
-    
-    // Check if email is verified
-    if (!student.isVerified) {
-      return res.status(400).json({ error: "Please verify your email to login" });
-    }
-    
 
-    // Validate the Password
+    // Agar email verified nahi hai toh login nahi ho sakta
+    if (!student.isVerified) {
+      return res.status(400).json({ error: "Email verify karna zaroori hai login ke liye" });
+    }
+
+    // Password ko verify karte hain
     const isPasswordValid = await bcrypt.compare(password, student.password);
     if (!isPasswordValid) {
-      return res.status(400).json({ error: "Invalid email or password" });
+      return res.status(400).json({ error: "Invalid email ya password" });
     }
 
-    // Create JWT token
+    // JWT token generate karte hain
     const token = jwt.sign(
       { id: student._id, email: student.email, name: student.name },
-      process.env.JWT_SECRET, // Replace with your secret key
-      { expiresIn: "1h" } // Token will expire in 1 hour
+      process.env.JWT_SECRET, // Secret key ko replace karein
+      { expiresIn: "1h" } // Token expire hoga 1 hour baad
     );
-    console.log(token)
-    console.log(process.env.JWT_SECRET)
 
-    // Login successful, return token
+    // Login successful hone par response bhejte hain
     res.status(200).json({
       message: "Login successful",
-      token, // Include the token in the response
+      token, // Token response me bhejte hain
     });
   } catch (error) {
     console.error(error);
@@ -137,34 +148,43 @@ exports.loginStudent = async (req, res) => {
   }
 };
 
-// Middleware to check JWT token
+/**
+ * Yeh middleware function JWT token ko validate karta hai.
+ * Agar token valid hota hai, toh user ki info request object mein attach karte hain.
+ */
 exports.authenticateToken = (req, res, next) => {
-  const token = req.headers["authorization"]?.split(" ")[1]; // Expecting "Bearer <token>"
+  const token = req.headers["authorization"]?.split(" ")[1]; // Token "Bearer <token>" format mein expect karte hain
 
   if (!token) {
-    return res.status(401).json({ error: "Access denied, token is missing!" });
+    return res.status(401).json({ error: "Token missing hai, access denied!" });
   }
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
       return res.status(403).json({ error: "Invalid token" });
     }
-    req.user = user; // Attach the decoded user to the request object
+    req.user = user; // User ki information request object mein save karte hain
     next();
   });
 };
 
+/**
+ * Yeh function student ki details fetch karne ke liye hota hai.
+ * Token ko validate karte hain aur phir student ke email se uski details retrieve karte hain.
+ */
 exports.fetchStudent = async (req, res) => {
   try {
-    // Use the authenticateToken middleware to secure this route
-    const { email } = req.user; // Email from decoded token (already attached by middleware)
+    // Token se student ki email milti hai
+    const { email } = req.user; // Token se decoded email milti hai
 
+    // Student ko email se dhoondte hain
     const student = await Student.findOne({ email });
 
     if (!student) {
-      return res.status(404).json({ message: "Student not found" });
+      return res.status(404).json({ message: "Student nahi mila" });
     }
 
+    // Student ki details response mein bhejte hain
     res.status(200).json({ student });
   } catch (error) {
     console.error("Error fetching student by email:", error);

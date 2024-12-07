@@ -1,18 +1,22 @@
-const MedicalDetails = require("../models/allotedLeave");
-const teachers = require("../models/teachers");
-const Teacher = require("../models/teachers"); // Import the teacher model
-const nodemailer = require("nodemailer"); // Import Nodemailer for sending emails
+const MedicalDetails = require("../models/allotedLeave"); // Students ke leave details ka model
+const teachers = require("../models/teachers"); // Teachers ke details ka model
+const Teacher = require("../models/teachers"); // Teacher model import kar rahe hain
+const nodemailer = require("nodemailer"); // Nodemailer emails bhejne ke liye
 
-// Configure Nodemailer transporter
+// Nodemailer ka configuration
 const transporter = nodemailer.createTransport({
-  service: "Gmail", // Change to your email service
+  service: "Gmail", // Gmail ya koi aur email service use karen
   auth: {
-    user: process.env.EMAIL, // Add your email here
-    pass: process.env.EMAIL_PASSWORD, // Add your email password here
+    user: process.env.EMAIL, // Apna email ID
+    pass: process.env.EMAIL_PASSWORD, // Apna email password
   },
 });
 
-// Controller to allocate leave
+/**
+ * Yeh function ek student ke liye leave allocate karta hai aur teachers ko email notification bhejta hai.
+ * Agar student pehle se exist kare, toh uske record ko update karta hai. Naya student ho toh naye record ke saath save karta hai.
+ * Department aur year ke teachers ke emails find karke notification bhejta hai.
+ */
 exports.allocateLeave = async (req, res) => {
   const {
     studentId,
@@ -28,26 +32,26 @@ exports.allocateLeave = async (req, res) => {
 
   console.log(studentId);
 
-  // Validate the required fields
+  // Required fields ki validation
   if (!studentId || !fromDate || !toDate) {
     return res
       .status(400)
-      .json({ error: "Missing required fields: studentId, fromDate, or toDate." });
+      .json({ error: "Required fields missing: studentId, fromDate, or toDate." });
   }
 
   try {
-    // Try to find the student by ID
+    // Student ID ke basis pe find karte hain
     let student = await MedicalDetails.findById(studentId);
 
     if (!student) {
-      // If student does not exist, validate all necessary fields
+      // Agar student nahi mila toh naye student ke fields validate karte hain
       if (!studentName || !registrationNo || !studentDepartment || !studentYear || !email) {
         return res.status(400).json({
-          error: "Missing required fields for new student: studentName, registrationNo, studentDepartment, or studentYear.",
+          error: "Required fields missing for new student: name, registrationNo, department, year, or email.",
         });
       }
 
-      // Create a new instance for the student
+      // Naye student ka record banate hain
       student = new MedicalDetails({
         _id: studentId,
         studentId,
@@ -56,24 +60,21 @@ exports.allocateLeave = async (req, res) => {
         studentDepartment,
         studentYear,
         email,
-        allottedLeaves: [],
+        allottedLeaves: [], // Leave records empty honge initially
       });
     }
 
-    // Add the leave to the student's allottedLeaves array
+    // Leave ko allottedLeaves array me add karte hain
     student.allottedLeaves.push({ fromDate, toDate, reason });
 
-    // Save the updated or newly created document
+    // Updated ya naya record save karte hain
     await student.save();
 
-    // Fetch teachers for the specific department and year
+    // Teachers ke details fetch karte hain specific department aur year ke liye
     console.log(`Fetching teachers for department: ${studentDepartment} and year: ${studentYear}`);
-    
-    // Convert studentYear to number if it's a string
-    const year = typeof studentYear === 'string' ? parseInt(studentYear) : studentYear;
 
-    // Ensure the department is a string and matching the case exactly
-    const department = studentDepartment.trim();
+    const year = typeof studentYear === "string" ? parseInt(studentYear) : studentYear; // Year ko number me convert karte hain
+    const department = studentDepartment.trim(); // Department ka name sanitize karte hain
 
     console.log("department : ", department, typeof department);
     console.log("year : ", year, typeof year);
@@ -83,15 +84,15 @@ exports.allocateLeave = async (req, res) => {
       year: year,
     });
 
-    console.log(teachersList); // Log the fetched teachers for debugging
+    console.log(teachersList); // Debug ke liye fetched teachers ko log karte hain
 
     if (teachersList && teachersList.teachers.length > 0) {
-      // Prepare email notifications
+      // Teachers ko email bhejne ke liye options banate hain
       const emailPromises = teachersList.teachers.map((teacher) => {
         const mailOptions = {
-          from: "MediCare",
-          to: teacher.email,
-          subject: `Leave Notification for ${studentName}`,
+          from: "MediCare", // Email ka sender name
+          to: teacher.email, // Teacher ka email
+          subject: `Leave Notification for ${studentName}`, // Email ka subject
           text: `
 Dear ${teacher.name},
 
@@ -110,10 +111,10 @@ Admin Team
           `,
         };
 
-        return transporter.sendMail(mailOptions);
+        return transporter.sendMail(mailOptions); // Email bhejne ka function
       });
 
-      // Send emails
+      // Saare emails ek saath bhejte hain
       await Promise.all(emailPromises);
 
       console.log("Emails sent to teachers.");

@@ -22,7 +22,7 @@ const AppointmentForm = ({ data }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://localhost:5000/api/appointments', formData);
+      const response = await axios.post('http://localhost:5000/api/student/appointments', formData);
       console.log('Appointment saved successfully:', response.data);
       window.location.reload(); // Refresh the page after submitting
 

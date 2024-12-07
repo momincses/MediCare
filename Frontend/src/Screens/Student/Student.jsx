@@ -44,7 +44,7 @@ const Student = () => {
         setStudentData(data.student);
 
         const appointmentsResponse = await fetch(
-          `http://localhost:5000/api/appointments?email=${email}`,
+          `http://localhost:5000/api/student/appointments?email=${email}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -59,7 +59,7 @@ const Student = () => {
 
         
         const allocatedLeavesResponse = await fetch(
-          `http://localhost:5000/api/allocatedLeaves?email=${email}`,
+          `http://localhost:5000/api/student/allocatedLeaves?email=${email}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -79,6 +79,8 @@ const Student = () => {
     fetchStudentData();
   }, [email, navigate]);
 
+ 
+
    // Handle Cancel Appointment
    const handleCancelAppointment = async (appointmentId) => {
     const token = localStorage.getItem("studentToken");
@@ -90,7 +92,7 @@ const Student = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/appointments/${appointmentId}`,
+        `http://localhost:5000/api/student/appointments/${appointmentId}`,
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },

@@ -82,6 +82,9 @@
     flex-direction: column;
     align-items: center;
     overflow: scroll;
+    overflow: -moz-scrollbars-none; /* For Firefox */
+  overflow: scroll; /* For Chrome, Safari, and newer browsers */
+  scrollbar-width: none; /* For Firefox */
 }
 
 /* Blurred Background */

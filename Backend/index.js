@@ -1,7 +1,8 @@
 const express = require("express");
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/auth");
-const medicalDetails = require("./routes/medicalDetails");
+const medicalDetails = require("./routes/doctorRoutes");
+const studentRoutes = require("./routes/studentRoutes");
 const cors = require("cors");
 
 // Initialize app
@@ -20,6 +21,7 @@ app.use(express.json());
 // Routes
 app.use("/api/auth", authRoutes);
 app.use('/api', medicalDetails);
+app.use('/api/student', studentRoutes);
 
 
 // Start server
