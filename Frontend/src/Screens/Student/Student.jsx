@@ -8,10 +8,11 @@ import AppointmentForm from "../../Components/AppointmentForm/AppointmentForm";
 const Student = () => {
   const [studentData, setStudentData] = useState(null);
   const [appointments, setAppointments] = useState([]);
+  const [leaves, setLeaves] = useState([]); // New state for leaves
   const [error, setError] = useState("");
   const [isPopupOpen, setIsPopupOpen] = useState(false);
 
-  const navigate = useNavigate(); // Initialize the navigate function
+  const navigate = useNavigate();
   const location = useLocation();
   const { email } = location.state || {};
 
@@ -22,77 +23,97 @@ const Student = () => {
 
   useEffect(() => {
     const fetchStudentData = async () => {
-      const token = localStorage.getItem("studentToken"); // Retrieve the token from local storage
+      const token = localStorage.getItem("studentToken");
 
       if (!token) {
         alert("You are not authenticated. Redirecting to the homepage.");
-        return navigate("/"); // Redirect to homepage if token is not found
+        return navigate("/");
       }
 
       try {
         const response = await fetch(`http://localhost:5000/api/auth/fetchStudent`, {
-          headers: {
-            Authorization: `Bearer ${token}`, // Include the token in the header
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!response.ok) {
           const errorResponse = await response.json();
-          throw new Error(
-            errorResponse.message || "Unable to fetch student data"
-          );
+          throw new Error(errorResponse.message || "Unable to fetch student data");
         }
 
         const data = await response.json();
         setStudentData(data.student);
 
-        // Fetch appointments
         const appointmentsResponse = await fetch(
           `http://localhost:5000/api/appointments?email=${email}`,
           {
-            headers: {
-              Authorization: `Bearer ${token}`, // Include the token here as well if needed
-            },
+            headers: { Authorization: `Bearer ${token}` },
           }
         );
+
         if (!appointmentsResponse.ok) {
           throw new Error("Unable to fetch appointments");
         }
+
         const appointmentsData = await appointmentsResponse.json();
         setAppointments(appointmentsData.appointments);
+
+        
+        const allocatedLeavesResponse = await fetch(
+          `http://localhost:5000/api/allocatedLeaves?email=${email}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        if (!allocatedLeavesResponse.ok) {
+          throw new Error("Unable to fetch allocated leaves");
+        }
+
+        const allocatedLeavesData = await allocatedLeavesResponse.json();
+        setLeaves(allocatedLeavesData.leaves); // Store leaves in state
       } catch (err) {
         setError(err.message);
       }
     };
 
     fetchStudentData();
-  }, [email, navigate]); // Add navigate to dependencies
+  }, [email, navigate]);
 
-  const handleCancelAppointment = async (appointmentId) => {
+   // Handle Cancel Appointment
+   const handleCancelAppointment = async (appointmentId) => {
+    const token = localStorage.getItem("studentToken");
+
+    if (!token) {
+      alert("You are not authenticated. Redirecting to the homepage.");
+      return navigate("/");
+    }
+
     try {
       const response = await fetch(
         `http://localhost:5000/api/appointments/${appointmentId}`,
         {
           method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
       if (!response.ok) {
-        throw new Error("Failed to cancel appointment");
+        throw new Error("Failed to cancel the appointment.");
       }
 
-      // Remove appointment from local state
-      setAppointments(appointments.filter((appointment) => appointment.id !== appointmentId));
-      alert("Appointment cancelled successfully!");
-      window.location.reload(); // Refresh the page after canceling
+      alert("Appointment canceled successfully.");
+
+      // Update the appointments state
+      setAppointments((prevAppointments) =>
+        prevAppointments.filter((appointment) => appointment._id !== appointmentId)
+      );
     } catch (err) {
-      alert(err.message);
+      alert(err.message || "Something went wrong.");
     }
   };
 
   return (
     <div className={styles.container}>
-      {/* Header Section */}
       <div className={styles.header}>
         <div className={styles.logo}>MediCare</div>
         <div className={styles.nav}>
@@ -101,14 +122,35 @@ const Student = () => {
           </li>
         </div>
       </div>
+
       {studentData ? (
         <div className={styles.studentDetails}>
           <h2>Welcome, {studentData.name}</h2>
           <h3>What would you like to do today?</h3>
           <div className={styles.medicalDetails}>
+            {/* Allocated Leaves Section */}
             <div className={styles.yourLeaves}>
               <h3 className={styles.medicalDetailsTitle}>Allocated Leaves</h3>
+              {leaves.length > 0 ? (
+                leaves.map((leave) => (
+                  <div key={leave._id} className={styles.leaveDetail}>
+                    <p>
+                      <strong>From:</strong> {formatDateWithDay(leave.fromDate)}
+                    </p>
+                    <p>
+                      <strong>To:</strong> {formatDateWithDay(leave.toDate)}
+                    </p>
+                    <p>
+                      <strong>Reason:</strong> {leave.reason}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p>No leaves allocated yet.</p>
+              )}
             </div>
+
+            {/* Appointment Section */}
             <div className={styles.appointment}>
               <h3 className={styles.medicalDetailsTitle}>Your Appointments</h3>
               {appointments.length > 0 ? (
@@ -141,7 +183,6 @@ const Student = () => {
         !error && <p>Loading student data...</p>
       )}
 
-      {/* Appointment Form Popup */}
       {isPopupOpen && (
         <div className={styles.popup}>
           <div className={styles.popupContent}>

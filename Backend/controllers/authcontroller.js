@@ -104,24 +104,17 @@ exports.loginStudent = async (req, res) => {
     if (!student) {
       return res.status(404).json({ error: "User not found" });
     }
-    else{
-      console.log("student not found")
-    }
-
+    
     // Check if email is verified
     if (!student.isVerified) {
       return res.status(400).json({ error: "Please verify your email to login" });
     }
-    else{
-      console.log("email not varified")
-    }
+    
 
     // Validate the Password
     const isPasswordValid = await bcrypt.compare(password, student.password);
     if (!isPasswordValid) {
       return res.status(400).json({ error: "Invalid email or password" });
-    }else{
-      console.log("password not validated")
     }
 
     // Create JWT token
@@ -130,7 +123,6 @@ exports.loginStudent = async (req, res) => {
       process.env.JWT_SECRET, // Replace with your secret key
       { expiresIn: "1h" } // Token will expire in 1 hour
     );
-    console.log("problem near jwt")
     console.log(token)
     console.log(process.env.JWT_SECRET)
 
