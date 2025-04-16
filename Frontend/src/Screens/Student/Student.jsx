@@ -4,6 +4,7 @@ import styles from "./Student.module.css";
 
 import Button from "@mui/material/Button";
 import AppointmentForm from "../../Components/AppointmentForm/AppointmentForm";
+import { Chip } from "@mui/material";
 
 const Student = () => {
   const [studentData, setStudentData] = useState(null);
@@ -17,7 +18,12 @@ const Student = () => {
   const { email } = location.state || {};
 
   const formatDateWithDay = (date) => {
-    const options = { weekday: "long", year: "numeric", month: "2-digit", day: "2-digit" };
+    const options = {
+      weekday: "long",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    };
     return new Intl.DateTimeFormat("en-US", options).format(new Date(date));
   };
 
@@ -31,13 +37,18 @@ const Student = () => {
       }
 
       try {
-        const response = await fetch(`http://localhost:5000/api/auth/fetchStudent`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await fetch(
+          `http://localhost:5000/api/auth/fetchStudent`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
 
         if (!response.ok) {
           const errorResponse = await response.json();
-          throw new Error(errorResponse.message || "Unable to fetch student data");
+          throw new Error(
+            errorResponse.message || "Unable to fetch student data"
+          );
         }
 
         const data = await response.json();
@@ -57,7 +68,6 @@ const Student = () => {
         const appointmentsData = await appointmentsResponse.json();
         setAppointments(appointmentsData.appointments);
 
-        
         const allocatedLeavesResponse = await fetch(
           `http://localhost:5000/api/student/allocatedLeaves?email=${email}`,
           {
@@ -79,10 +89,8 @@ const Student = () => {
     fetchStudentData();
   }, [email, navigate]);
 
- 
-
-   // Handle Cancel Appointment
-   const handleCancelAppointment = async (appointmentId) => {
+  // Handle Cancel Appointment
+  const handleCancelAppointment = async (appointmentId) => {
     const token = localStorage.getItem("studentToken");
 
     if (!token) {
@@ -107,7 +115,9 @@ const Student = () => {
 
       // Update the appointments state
       setAppointments((prevAppointments) =>
-        prevAppointments.filter((appointment) => appointment._id !== appointmentId)
+        prevAppointments.filter(
+          (appointment) => appointment._id !== appointmentId
+        )
       );
     } catch (err) {
       alert(err.message || "Something went wrong.");
@@ -159,6 +169,21 @@ const Student = () => {
                 appointments.map((appointment, index) => (
                   <div key={index} className={styles.appointmentMade}>
                     <span>{formatDateWithDay(appointment.visitDate)}</span>
+
+                    <Chip
+  label={appointment.appointmentStatus}
+  color={
+    appointment.appointmentStatus === "accepted"
+      ? "success"
+      : appointment.appointmentStatus === "pending"
+      ? "warning"
+      : "error"
+  }
+  variant="outlined"
+  style={{ marginLeft: "10px" }}
+/>
+
+
                     <Button
                       variant="outlined"
                       color="error"

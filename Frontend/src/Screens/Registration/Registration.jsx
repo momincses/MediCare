@@ -15,7 +15,7 @@ const Registration = () => {
     handleSubmit,
     formState: { errors },
     watch,
-    clearErrors, // To clear errors dynamically
+    clearErrors,
   } = useForm({
     mode: "onChange",
   });

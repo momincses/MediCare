@@ -6,7 +6,7 @@ const MedicalDetails = require("../models/allotedLeave"); // Medical leaves ka m
  * Ye function ek student ka appointment save karta hai aur uski details database mein store karta hai.
  */
 exports.saveAppointment = async (req, res) => {
-  const { name, registrationNo, emailId, departmentName, year, visitDate } = req.body;
+  const { name, registrationNo, emailId, departmentName, year, visitDate, appointmentStatus  } = req.body;
 
   // Required fields ki validation
   if (!name || !registrationNo || !emailId || !departmentName || !year || !visitDate) {
@@ -22,6 +22,7 @@ exports.saveAppointment = async (req, res) => {
       departmentName,
       year,
       visitDate,
+      appointmentStatus: appointmentStatus || "pending", 
     });
 
     const savedAppointment = await newAppointment.save(); // Save operation
@@ -31,6 +32,8 @@ exports.saveAppointment = async (req, res) => {
     res.status(500).json({ message: "Error saving appointment.", error: error.message });
   }
 };
+
+
 
 /**
  * Get Appointments By Email

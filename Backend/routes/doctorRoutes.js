@@ -1,13 +1,23 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateDoctorToken, getAllAppointments } = require('../controllers/doctorAuth');
-const { allocateLeave } = require('../controllers/doctorOperations');
+const { authenticateDoctorToken } = require('../controllers/doctorAuth');
+const {
+  allocateLeave,
+  updateAppointmentStatus,
+  getAllAppointments,
+  getAppointmentsByDate, 
+} = require('../controllers/doctorOperations');
 
-//fetch all appointments here
+//  Fetch all appointments
 router.get("/doctor/allappointments", authenticateDoctorToken, getAllAppointments);
 
-// Alllocate the leaves to student and send email 
+//  Fetch appointments by specific date
+router.get("/doctor/appointments/by-date", authenticateDoctorToken, getAppointmentsByDate);
+
+//  Allocate the leaves to student and send email 
 router.post("/doctor/allocateleave", allocateLeave);
 
+//  Update appointment status (accepted, rejected, pending)
+router.patch("/doctor/appointment/:id/status", authenticateDoctorToken, updateAppointmentStatus);
 
 module.exports = router;

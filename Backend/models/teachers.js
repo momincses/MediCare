@@ -19,8 +19,8 @@ const departmentTeacherSchema = new mongoose.Schema({
       },
       email: {
         type: String,
-        required: true, // Teacher ka email zaroori hai
-        unique: true, // Email unique hona chahiye, taake koi duplicate na ho
+        required: true // Teacher ka email zaroori hai
+        // unique: true, // Email unique hona chahiye, taake koi duplicate na ho
       },
     },
   ],

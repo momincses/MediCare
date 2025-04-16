@@ -1,46 +1,70 @@
+// src/Pages/Doctor/Doctor.jsx
+
 import React, { useEffect, useState } from "react";
-import { TextField, Button } from "@mui/material";
+import dayjs from "dayjs";
+import {
+  TextField,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  CircularProgress,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  Snackbar,
+} from "@mui/material";
 import styles from "./Doctor.module.css";
+import DoctorNavbar from "../../Components/Doctor/DoctorNavbar";
 
 const Doctor = () => {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [leaveReason, setLeaveReason] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [dateDialogOpen, setDateDialogOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [snackbar, setSnackbar] = useState({ open: false, message: "" });
+  const [filter, setFilter] = useState("all");
 
-  const fetchAppointments = async () => {
-    const token = localStorage.getItem("doctorToken");
+  const token = localStorage.getItem("doctorToken");
+  const todayStr = dayjs().format("YYYY-MM-DD");
+
+  const showMessage = (msg) => {
+    setSnackbar({ open: true, message: msg });
+  };
+
+  const fetchAppointments = async (date = null) => {
+    setLoading(true);
+    let url = "http://localhost:5000/api/doctor/allappointments";
+    if (date) {
+      url = `http://localhost:5000/api/doctor/appointments/by-date?date=${date}`;
+    }
 
     try {
-      const response = await fetch("http://localhost:5000/api/doctor/allappointments", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-
       const result = await response.json();
-
       if (response.ok) {
-        setAppointments(result.appointments);
+        setAppointments(result.appointments || []);
       } else {
-        setError(result.error || "Failed to fetch appointments");
+        showMessage(result.error || "Could not fetch appointments.");
       }
     } catch (err) {
-      setError("Error fetching appointments. Please try again later.");
       console.error(err);
+      showMessage("Server error. Please try again.");
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchAppointments();
-  }, []);
 
   const handleAllocateLeave = (appointment) => {
     setSelectedStudent(appointment);
@@ -48,10 +72,8 @@ const Doctor = () => {
   };
 
   const handleFormSubmit = async (e) => {
-    // console.log(selectedStudent)
+    setLoading(true)
     e.preventDefault();
-    const token = localStorage.getItem("doctorToken");
-  
     const leaveData = {
       studentId: selectedStudent._id,
       studentName: selectedStudent.name,
@@ -63,7 +85,7 @@ const Doctor = () => {
       reason: leaveReason,
       email: selectedStudent.emailId,
     };
-  
+
     try {
       const response = await fetch("http://localhost:5000/api/doctor/allocateleave", {
         method: "POST",
@@ -73,77 +95,205 @@ const Doctor = () => {
         },
         body: JSON.stringify(leaveData),
       });
-  
       const result = await response.json();
-  
       if (response.ok) {
-        alert("Leave allocated successfully!");
+        showMessage("Leave allocated successfully!");
         setShowModal(false);
         setLeaveReason("");
         setFromDate("");
         setToDate("");
       } else {
-        alert(result.error || "Failed to allocate leave.");
+        showMessage(result.error || "Failed to allocate leave.");
       }
     } catch (err) {
-      console.error("Error submitting leave:", err);
-      alert("Error submitting leave. Please try again.");
+      console.error(err);
+      showMessage("Error submitting leave. Please try again.");
+    }
+    finally {
+      setLoading(false)
     }
   };
-  
+
+  const handleUpdateStatus = async (id, status) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`http://localhost:5000/api/doctor/appointment/${id}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+      const result = await response.json();
+      if (response.ok) {
+        showMessage(`Appointment ${status}`);
+        fetchAppointments(selectedDate || todayStr);
+      } else {
+        showMessage(result.error || "Could not update status.");
+      }
+    } catch (err) {
+      console.error(err);
+      showMessage("Server error updating status.");
+    }
+    finally {
+      setLoading(false)
+    }
+  };
+
+  useEffect(() => {
+    setSelectedDate(todayStr);
+    fetchAppointments(todayStr);
+  }, []);
+
+  const filteredAppointments = appointments.filter((a) => {
+    if (filter === "all") return true;
+    if (filter === "pending") return !a.appointmentStatus || a.appointmentStatus === "pending";
+    return a.appointmentStatus === filter;
+  });
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>Doctor Dashboard</h1>
+    <div>
+      <DoctorNavbar
+  onTodayClick={() => {
+    setSelectedDate(todayStr);
+    fetchAppointments(todayStr);
+  }}
+  onDateClick={() => setDateDialogOpen(true)}
+  filter={filter}
+  onFilterChange={setFilter}
+/>
+
 
       {loading ? (
-        <p>Loading appointments...</p>
-      ) : error ? (
-        <p style={{ color: "red" }}>{error}</p>
+        <div className={styles.loaderOverlay}>
+        <CircularProgress color="primary" />
+      </div>
       ) : appointments.length === 0 ? (
-        <p>No appointments found.</p>
+        <p style={{ textAlign: "center", marginTop: 20 }}>
+          No appointments found.
+        </p>
       ) : (
-        <div>
-          <h2>Appointments</h2>
-          <table border="1" style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Registration No</th>
-                <th>Email</th>
-                <th>Department</th>
-                <th>Year</th>
-                <th>Visit Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {appointments.map((appointment) => (
-                <tr key={appointment._id}>
-                  <td>{appointment.name}</td>
-                  <td>{appointment.registrationNo}</td>
-                  <td>{appointment.emailId}</td>
-                  <td>{appointment.departmentName}</td>
-                  <td>{appointment.year}</td>
-                  <td>{new Date(appointment.visitDate).toLocaleDateString()}</td>
-                  <td>
-                    <button onClick={() => handleAllocateLeave(appointment)}>Allocate Leave</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        
+        <TableContainer
+          component={Paper}
+          sx={{ m: 3,p: "20px", maxWidth: "95%", fontSize: "20px" }}
+        >
+  Results for {dayjs(selectedDate).format("DD/MM/YYYY")}
+  <Table>
+            <TableHead>
+              <TableRow sx={{ backgroundColor: "#e3f2fd" }}>
+                {[
+                  "Name",
+                  "Reg. No",
+                  "Email",
+                  "Dept",
+                  "Year",
+                  "Date",
+                  "Status",
+                  "Actions",
+                ].map((h) => (
+                  <TableCell key={h} sx={{ fontWeight: "bold" }}>
+                    {h}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredAppointments.map((a, idx) => {
+                const isToday =
+                  dayjs(a.visitDate).format("YYYY-MM-DD") === todayStr;
+                return (
+                  <TableRow
+                    key={a._id}
+                    sx={{
+                      backgroundColor: idx % 2 === 0 ? "#fafafa" : "#ffffff",
+                    }}
+                  >
+                    <TableCell>{a.name}</TableCell>
+                    <TableCell>{a.registrationNo}</TableCell>
+                    <TableCell>{a.emailId}</TableCell>
+                    <TableCell>{a.departmentName}</TableCell>
+                    <TableCell>{a.year}</TableCell>
+                    <TableCell>
+                      {dayjs(a.visitDate).format("DD/MM/YYYY")}
+                    </TableCell>
+                    <TableCell>
+                      {a.appointmentStatus || "Pending"}
+                    </TableCell>
+                    <TableCell>
+                      {isToday ? (
+                        <Button
+                          variant="contained"
+                          size="small"
+                          onClick={() => handleAllocateLeave(a)}
+                        >
+                          Allocate Leave
+                        </Button>
+                      ) : (
+                        <>
+                          <Button
+                            color="success"
+                            size="small"
+                            onClick={() =>
+                              handleUpdateStatus(a._id, "accepted")
+                            }
+                            sx={{ mr: 1 }}
+                          >
+                            Accept
+                          </Button>
+                          <Button
+                            color="error"
+                            size="small"
+                            onClick={() =>
+                              handleUpdateStatus(a._id, "rejected")
+                            }
+                          >
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
 
-      {/* Modal for Leave Allocation */}
+      {/* Date Picker Dialog */}
+      <Dialog open={dateDialogOpen} onClose={() => setDateDialogOpen(false)}>
+        <DialogTitle>Select Date</DialogTitle>
+        <DialogContent>
+          <TextField
+            type="date"
+            fullWidth
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            sx={{ my: 2 }}
+            InputLabelProps={{ shrink: true }}
+          />
+          <Button
+            onClick={() => {
+              setDateDialogOpen(false);
+              fetchAppointments(selectedDate);
+            }}
+            variant="contained"
+            fullWidth
+          >
+            Get Appointments
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Leave Allocation Modal */}
       {showModal && (
         <div className={styles.modal}>
           <div className={styles.modalContent}>
             <button
               className={styles.closeButton}
               onClick={() => setShowModal(false)}
-              aria-label="Close"
             >
               &times;
             </button>
@@ -153,57 +303,49 @@ const Doctor = () => {
                 <strong>Name:</strong> {selectedStudent.name}
               </p>
               <p>
-                <strong>Registration No:</strong> {selectedStudent.registrationNo}
+                <strong>Reg No:</strong> {selectedStudent.registrationNo}
               </p>
-              <p>
-                <strong>Department :</strong> {selectedStudent.departmentName}
-              </p>
-              <p>
-                <strong>Year :</strong> {selectedStudent.year}
-              </p>
-              <div>
-                <TextField
-                  label="From Date"
-                  variant="outlined"
-                  fullWidth
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  required
-                  InputLabelProps={{ shrink: true }}
-                  margin="normal"
-                />
-              </div>
-              <div>
-                <TextField
-                  label="To Date"
-                  variant="outlined"
-                  fullWidth
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  required
-                  InputLabelProps={{ shrink: true }}
-                  margin="normal"
-                />
-              </div>
-              <div>
-                <TextField
-                  label="Reason for Leave"
-                  variant="outlined"
-                  fullWidth
-                  value={leaveReason}
-                  onChange={(e) => setLeaveReason(e.target.value)}
-                  margin="normal"
-                />
-              </div>
-              <Button type="submit" variant="contained" color="primary" fullWidth>
+              <TextField
+                label="From Date"
+                type="date"
+                fullWidth
+                required
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                margin="normal"
+              />
+              <TextField
+                label="To Date"
+                type="date"
+                fullWidth
+                required
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                margin="normal"
+              />
+              <TextField
+                label="Reason"
+                fullWidth
+                value={leaveReason}
+                onChange={(e) => setLeaveReason(e.target.value)}
+                margin="normal"
+              />
+              <Button type="submit" variant="contained" fullWidth>
                 Submit
               </Button>
             </form>
           </div>
         </div>
       )}
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ open: false, message: "" })}
+        message={snackbar.message}
+      />
     </div>
   );
 };

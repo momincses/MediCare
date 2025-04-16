@@ -2,6 +2,7 @@ const MedicalDetails = require("../models/allotedLeave"); // Students ke leave d
 const teachers = require("../models/teachers"); // Teachers ke details ka model
 const Teacher = require("../models/teachers"); // Teacher model import kar rahe hain
 const nodemailer = require("nodemailer"); // Nodemailer emails bhejne ke liye
+const Appointment = require('../models/appointment'); // Appointments ka model
 
 // Nodemailer ka configuration
 const transporter = nodemailer.createTransport({
@@ -11,6 +12,86 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASSWORD, // Apna email password
   },
 });
+
+/**
+ * Yeh function saare appointments retrieve karne ke liye hota hai.
+ * Database se saare appointments fetch karta hai aur unhe response me bhejta hai.
+ * Agar koi error aaye toh server error ka response deta hai.
+ */
+exports.getAllAppointments = async (req, res) => {
+  try {
+    // Database se saare appointments fetch karte hain
+    const appointments = await Appointment.find();
+
+    // Response me appointments bhejte hain
+    res.status(200).json({ appointments });
+  } catch (error) {
+    console.error("Error fetching appointments:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+/**
+ * Yeh function ek specific date ke appointments fetch karta hai.
+ * Client se date leke us din ke saare appointments database se retrieve karta hai.
+ * Agar appointments mil jaate hain toh unhe return karta hai, nahi toh empty array deta hai.
+ */
+// In controllers/doctorOperations.js (or wherever you keep it)
+exports.getAppointmentsByDate = async (req, res) => {
+  const { date } = req.query; // e.g. "2025-04-18"
+
+  if (!date) {
+    return res.status(400).json({ error: "Date query parameter is required." });
+  }
+
+  try {
+    // Build an exact UTC‐midnight range for that calendar day:
+    const startOfDay = new Date(date);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+
+    // (Optional) Log what you’re querying, for debugging:
+    console.log(
+      `Querying appointments from ${startOfDay.toISOString()} ` +
+      `through ${endOfDay.toISOString()}`
+    );
+
+    // Fetch them
+    const appointments = await Appointment.find({
+      visitDate: { $gte: startOfDay, $lte: endOfDay }
+    });
+
+    console.log(`Found ${appointments.length} appointment(s)`);
+    return res.status(200).json({ appointments });
+  } catch (error) {
+    console.error("Error fetching appointments by date:", error);
+    return res.status(500).json({ error: "Server error. Please try again later." });
+  }
+};
+
+
+
+// PATCH /appointments/:id/status
+// Is function doctor appointment accept ya reject kar sakta hai.
+exports.updateAppointmentStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!['pending', 'accepted', 'rejected'].includes(status)) {
+    return res.status(400).json({ message: "Invalid status value." });
+  }
+
+  try {
+    const updated = await Appointment.findByIdAndUpdate(id, { appointmentStatus: status }, { new: true });
+    if (!updated) return res.status(404).json({ message: "Appointment not found." });
+
+    res.json({ message: "Status updated.", appointment: updated });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to update appointment status." });
+  }
+};
 
 /**
  * Yeh function ek student ke liye leave allocate karta hai aur teachers ko email notification bhejta hai.
@@ -30,69 +111,60 @@ exports.allocateLeave = async (req, res) => {
     email,
   } = req.body;
 
-  console.log(studentId);
-
-  // Required fields ki validation
+  // Validate required fields
   if (!studentId || !fromDate || !toDate) {
-    return res
-      .status(400)
-      .json({ error: "Required fields missing: studentId, fromDate, or toDate." });
+    return res.status(400).json({
+      error: "Required fields missing: studentId, fromDate, or toDate.",
+    });
   }
 
   try {
-    // Student ID ke basis pe find karte hain
     let student = await MedicalDetails.findById(studentId);
 
+    // If not found by ID, try finding by registrationNo or email
     if (!student) {
-      // Agar student nahi mila toh naye student ke fields validate karte hain
       if (!studentName || !registrationNo || !studentDepartment || !studentYear || !email) {
         return res.status(400).json({
           error: "Required fields missing for new student: name, registrationNo, department, year, or email.",
         });
       }
 
-      // Naye student ka record banate hain
-      student = new MedicalDetails({
-        _id: studentId,
-        studentId,
-        studentName,
-        registrationNo,
-        studentDepartment,
-        studentYear,
-        email,
-        allottedLeaves: [], // Leave records empty honge initially
+      student = await MedicalDetails.findOne({
+        $or: [{ registrationNo }, { email }],
       });
+
+      // If student still not found, create new
+      if (!student) {
+        student = new MedicalDetails({
+          _id: studentId,
+          studentId,
+          studentName,
+          registrationNo,
+          studentDepartment,
+          studentYear,
+          email,
+          allottedLeaves: [],
+        });
+      }
     }
 
-    // Leave ko allottedLeaves array me add karte hain
+    // Add leave to the student's allottedLeaves
     student.allottedLeaves.push({ fromDate, toDate, reason });
 
-    // Updated ya naya record save karte hain
     await student.save();
 
-    // Teachers ke details fetch karte hain specific department aur year ke liye
-    console.log(`Fetching teachers for department: ${studentDepartment} and year: ${studentYear}`);
+    // Fetch relevant teachers
+    const year = typeof studentYear === "string" ? parseInt(studentYear) : studentYear;
+    const department = studentDepartment.trim();
 
-    const year = typeof studentYear === "string" ? parseInt(studentYear) : studentYear; // Year ko number me convert karte hain
-    const department = studentDepartment.trim(); // Department ka name sanitize karte hain
-
-    console.log("department : ", department, typeof department);
-    console.log("year : ", year, typeof year);
-
-    const teachersList = await Teacher.findOne({
-      department: department,
-      year: year,
-    });
-
-    console.log(teachersList); // Debug ke liye fetched teachers ko log karte hain
+    const teachersList = await Teacher.findOne({ department, year });
 
     if (teachersList && teachersList.teachers.length > 0) {
-      // Teachers ko email bhejne ke liye options banate hain
       const emailPromises = teachersList.teachers.map((teacher) => {
         const mailOptions = {
-          from: "MediCare", // Email ka sender name
-          to: teacher.email, // Teacher ka email
-          subject: `Leave Notification for ${studentName}`, // Email ka subject
+          from: "MediCare",
+          to: teacher.email,
+          subject: `Leave Notification for ${studentName}`,
           text: `
 Dear ${teacher.name},
 
@@ -111,22 +183,21 @@ Admin Team
           `,
         };
 
-        return transporter.sendMail(mailOptions); // Email bhejne ka function
+        return transporter.sendMail(mailOptions);
       });
 
-      // Saare emails ek saath bhejte hain
       await Promise.all(emailPromises);
-
       console.log("Emails sent to teachers.");
     } else {
-      console.warn(
-        `No teachers found for department: ${studentDepartment} and year: ${studentYear}`
-      );
+      console.warn(`No teachers found for department: ${studentDepartment} and year: ${studentYear}`);
     }
 
-    res.status(200).json({ message: "Leave allocated and email notifications sent successfully." });
+    res.status(200).json({
+      message: "Leave allocated and email notifications sent successfully.",
+    });
   } catch (error) {
     console.error("Error allocating leave:", error);
     res.status(500).json({ error: "Server error. Please try again later." });
   }
 };
+

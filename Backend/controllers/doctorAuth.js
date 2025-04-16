@@ -66,20 +66,4 @@ exports.loginDoctor = async (req, res) => {
   }
 };
 
-/**
- * Yeh function saare appointments retrieve karne ke liye hota hai.
- * Database se saare appointments fetch karta hai aur unhe response me bhejta hai.
- * Agar koi error aaye toh server error ka response deta hai.
- */
-exports.getAllAppointments = async (req, res) => {
-  try {
-    // Database se saare appointments fetch karte hain
-    const appointments = await Appointment.find();
 
-    // Response me appointments bhejte hain
-    res.status(200).json({ appointments });
-  } catch (error) {
-    console.error("Error fetching appointments:", error);
-    res.status(500).json({ error: "Server error" });
-  }
-};

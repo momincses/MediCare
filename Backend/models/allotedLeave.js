@@ -35,6 +35,7 @@ const medicalDetailsSchema = new mongoose.Schema({
   registrationNo: { 
     type: String, 
     unique: true, 
+
     required: true, // Har student ka ek unique registration number
   },
   email: { 

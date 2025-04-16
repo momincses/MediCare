@@ -28,6 +28,12 @@ const appointmentSchema = new mongoose.Schema(
       type: Date, 
       required: true // Appointment ki tareekh lazmi hai
     },
+    appointmentStatus: { 
+      type: String, 
+      enum: ['pending', 'accepted', 'rejected'], // Only allow these 3 values
+      default: 'pending', // Optional default
+      required: true 
+    },
   },
   { 
     timestamps: true // Automatically createdAt aur updatedAt fields ko include karta hai
