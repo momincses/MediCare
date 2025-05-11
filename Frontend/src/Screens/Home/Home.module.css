@@ -10,6 +10,7 @@
   background-color: #e1e1e1;
   position: fixed;
   top: 10px;
+  margin-bottom: 20px;
   z-index: 10;
 }
 

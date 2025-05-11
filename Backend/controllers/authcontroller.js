@@ -16,11 +16,11 @@ exports.registerStudent = async (req, res) => {
 
   try {
     // Validation: Agar koi required field miss ho toh error bhejte hain
-    if (!name || !email || !password || !confirmPassword) {
+    if (!password || !confirmPassword) {
       return res.status(400).json({ error: "Sab fields fill karna zaroori hai" });
     }
 
-    // Email ka format check karte hain
+    // Email ka format chename || !email || !ck karte hain
     if (!/^[0-9]{4}[a-zA-Z]{3,5}[0-9]{1,5}@sggs\.ac\.in$/.test(email)) {
       return res.status(400).json({ error: "Email format sahi nahi hai" });
     }
